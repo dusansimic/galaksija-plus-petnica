@@ -23,20 +23,6 @@ void sendKeyEvent(char keyDown, char c) {
     char bit4 = (y & 0b00000010) >> 1;
     char bit5 = (y & 0b00000100) >> 2;
 
-//    Serial.print(keyDown, DEC);
-//    Serial.print(" ");
-//    Serial.print(bit2, DEC);
-//    Serial.print(" ");
-//    Serial.print(bit1, DEC);
-//    Serial.print(" ");
-//    Serial.print(bit0, DEC);
-//    Serial.print(" ");
-//    Serial.print(bit5, DEC);
-//    Serial.print(" ");
-//    Serial.print(bit4, DEC);
-//    Serial.print(" ");
-//    Serial.println(bit3, DEC);
-
     digitalWrite(5, bit0);      // x0
     digitalWrite(6, bit1);      // x1
     digitalWrite(7, bit2);      // x2
@@ -49,7 +35,8 @@ void sendKeyEvent(char keyDown, char c) {
 }
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
+    Serial.flush();
     ps2Keyboard.begin();
     ps2Keyboard.setScanCodeSet(ps2::ScanCodeSet::pcat);
     keyMapping.setNumLock(true);
@@ -78,12 +65,18 @@ void setup() {
 }
 
 ps2::KeyboardOutput smartRead() {
-  ps2::KeyboardOutput scanCode;
-  do {
-   scanCode = ps2Keyboard.readScanCode();
-  } while (scanCode == ps2::KeyboardOutput::none);
-
-  return scanCode;
+  if (!Serial.available()) {
+    ps2::KeyboardOutput scanCode;
+    do {
+     scanCode = ps2Keyboard.readScanCode();
+    } while (scanCode == ps2::KeyboardOutput::none);
+  
+    return scanCode;
+  } else {
+    delay(10);
+    char incomingByte = Serial.read();
+    return (ps2::KeyboardOutput) incomingByte;
+  }
 }
 
 void codesSwitch(ps2::KeyboardOutput scannedCode) {
@@ -297,6 +290,7 @@ void codesSwitch(ps2::KeyboardOutput scannedCode) {
 }
 
 void loop() {
+  if (!Serial.available()) {
     diagnostics.setLedIndicator<LED_BUILTIN>();
     ps2::KeyboardOutput scanCode = smartRead();
     if (scanCode == ps2::KeyboardOutput::garbled) {
@@ -318,4 +312,9 @@ void loop() {
             lastLedSent = newLeds;
         }
     }
+  } else {
+    delay(10);
+    char incomingByte = Serial.read();
+    codesSwitch((ps2::KeyboardOutput) incomingByte);
+  }
 }
