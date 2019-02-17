@@ -9,11 +9,17 @@ static ps2::Keyboard<4,3,1, Diagnostics_> ps2Keyboard(diagnostics);
 static ps2::KeyboardLeds lastLedSent = ps2::KeyboardLeds::none;
 
 bool data = true;
+bool isExtended = false;
+bool wasAKey = false;
+char dataBuf[1];
 
 void sendKeyEvent(char keyDown, char c) {
 //    Serial.print(keyDown, DEC);
 //    Serial.print(" ");
 //    Serial.println(c, DEC);
+//    Serial.write(keyDown);
+//    Serial.write(c);
+//    return;
     char x = c / 8;
     char y = c % 8;
     char bit0 = x & 0b00000001;
@@ -36,7 +42,8 @@ void sendKeyEvent(char keyDown, char c) {
 
 void setup() {
     Serial.begin(115200);
-    Serial.flush();
+    Serial.setTimeout(100);
+//    while (Serial.read() >= 0);
     ps2Keyboard.begin();
     ps2Keyboard.setScanCodeSet(ps2::ScanCodeSet::pcat);
     keyMapping.setNumLock(true);
@@ -65,30 +72,33 @@ void setup() {
 }
 
 ps2::KeyboardOutput smartRead() {
-  if (!Serial.available()) {
-    ps2::KeyboardOutput scanCode;
-    do {
-     scanCode = ps2Keyboard.readScanCode();
-    } while (scanCode == ps2::KeyboardOutput::none);
-  
-    return scanCode;
-  } else {
-    delay(10);
+  if (Serial.available()) {
     char incomingByte = Serial.read();
     return (ps2::KeyboardOutput) incomingByte;
+  } else {
+    ps2::KeyboardOutput scanCode = ps2Keyboard.readScanCode();
+    return scanCode;
   }
 }
 
 void codesSwitch(ps2::KeyboardOutput scannedCode) {
-  if (((byte) scannedCode) != 0xe0) {
-//    Serial.println("nije e0");
-    if (((byte) scannedCode) == 0xf0) {
-//      Serial.println("jeste f0");
-      data = false;
-      scannedCode = smartRead();
+  if (((byte) scannedCode) == 0xe0) {
+    isExtended = true;
+    scannedCode = smartRead();
+    if (scannedCode == ps2::KeyboardOutput::none) {
+      return;
     }
+  }
 
-//    Serial.println((byte) scannedCode, HEX);
+  if (((byte) scannedCode) == 0xf0) {
+    data = false;
+    scannedCode = smartRead();
+    if (scannedCode == ps2::KeyboardOutput::none) {
+      return;
+    }
+  }
+  
+  if (!isExtended) {
     switch((byte) scannedCode) {
       case 0x1c: // A
         sendKeyEvent(data, 1);
@@ -240,7 +250,6 @@ void codesSwitch(ps2::KeyboardOutput scannedCode) {
         break;
       case 0x12: // Shift [Left]
       case 0x59: // Shift [Right]
-//        Serial.println("u 12 je");
         sendKeyEvent(data, 53);
         break;
       case 0x66: // Backspace
@@ -250,18 +259,6 @@ void codesSwitch(ps2::KeyboardOutput scannedCode) {
         break;
     }
   } else {
-//    Serial.println("jeste e0");
-    do {
-      scannedCode = smartRead();
-    } while (scannedCode == ps2::KeyboardOutput::none);
-
-    if (((byte) scannedCode) == 0xf0) {
-//      Serial.println("jeste f0");
-      data = false;
-      scannedCode = smartRead();
-    }
-
-//    Serial.println((byte) scannedCode, HEX);
     switch((byte) scannedCode) {
       case 0x72: // Down arrow
         sendKeyEvent(data, 28);
@@ -286,35 +283,37 @@ void codesSwitch(ps2::KeyboardOutput scannedCode) {
     }
   }
 
-  data = true;
+  if (scannedCode != ps2::KeyboardOutput::none) {
+    data = true;
+    isExtended = false;
+  }
 }
 
 void loop() {
-  if (!Serial.available()) {
-    diagnostics.setLedIndicator<LED_BUILTIN>();
-    ps2::KeyboardOutput scanCode = smartRead();
-    if (scanCode == ps2::KeyboardOutput::garbled) {
-        keyMapping.reset();
-    }
-    else if (scanCode != ps2::KeyboardOutput::none)
-    {
-//        Serial.println((byte) scannedCode, HEX);
-//        Serial.println("first read");
-//    Serial.println((byte) scanCode, HEX);
-
-        codesSwitch(scanCode);
-        
-        ps2::KeyboardLeds newLeds =
-              (keyMapping.getCapsLock() ? ps2::KeyboardLeds::capsLock : ps2::KeyboardLeds::none)
-            | (keyMapping.getNumLock() ? ps2::KeyboardLeds::numLock : ps2::KeyboardLeds::none);
-        if (newLeds != lastLedSent) {
-            ps2Keyboard.sendLedStatus(newLeds);
-            lastLedSent = newLeds;
-        }
-    }
-  } else {
-    delay(10);
-    char incomingByte = Serial.read();
-    codesSwitch((ps2::KeyboardOutput) incomingByte);
-  }
+//  if (!Serial.available()) {
+//    diagnostics.setLedIndicator<LED_BUILTIN>();
+//    ps2::KeyboardOutput scanCode = smartRead();
+//    if (scanCode == ps2::KeyboardOutput::garbled) {
+//        keyMapping.reset();
+//    }
+//    else if (scanCode != ps2::KeyboardOutput::none)
+//    {
+////        Serial.println((byte) scannedCode, HEX);
+////        Serial.println("first read");
+////    Serial.println((byte) scanCode, HEX);
+//
+//        codesSwitch(scanCode);
+//        
+//        ps2::KeyboardLeds newLeds =
+//              (keyMapping.getCapsLock() ? ps2::KeyboardLeds::capsLock : ps2::KeyboardLeds::none)
+//            | (keyMapping.getNumLock() ? ps2::KeyboardLeds::numLock : ps2::KeyboardLeds::none);
+//        if (newLeds != lastLedSent) {
+//            ps2Keyboard.sendLedStatus(newLeds);
+//            lastLedSent = newLeds;
+//        }
+//    }
+//  } else {
+    ps2::KeyboardOutput incomingByte = smartRead();
+    codesSwitch(incomingByte);
+//  }
 }
