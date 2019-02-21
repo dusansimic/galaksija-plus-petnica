@@ -98,7 +98,7 @@ for i in range(0,len(file)):
 
 """ prebacivanje na serijski port """
 ser = serial.Serial(sys.argv[2], int(sys.argv[3])) # prvi arg promeni
-time.sleep(1)
+time.sleep(2)
 
 values = []
 for i in range(0, len(file)):
@@ -106,13 +106,17 @@ for i in range(0, len(file)):
         values.append(file[i][j])
 
 print(values)
+# ser.write(bytearray(values))
 for value in values:
-	print("napisano: {}".format(ser.write(bytes([value]))))
-	time.sleep(0.1)
+	# print("napisano: {}".format(ser.write(bytes([value]))))
+	ser.write(bytes([value]))
+	time.sleep(0.05)
 # print("napisano: {}".format(ser.write(bytearray(values))))
 # for i in range(65, 90):
 # 	print(bytes([i]))
 # 	ser.write(bytes([i]))
 # 	print("read: {}".format(ser.read(1)))
-
+# for i in range(14):
+	# print("in waiting: {}".format(ser.in_waiting))
+	# print("read: {}".format(ord(ser.read(1))))
 ser.close()
