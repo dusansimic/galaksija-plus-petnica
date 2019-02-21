@@ -1,3 +1,13 @@
+/*
+ * Authors:
+ * Dušan Simić
+ * Nemanja Milanović
+ * Vladimir Lunić
+ * Matija Stanković
+ *
+ * License: MIT © 2019 Dušan Simić
+ */
+
 #include "ps2_Keyboard.h"
 #include "ps2_AnsiTranslator.h"
 #include "ps2_SimpleDiagnostics.h"
@@ -14,12 +24,6 @@ bool wasAKey = false;
 char dataBuf[1];
 
 void sendKeyEvent(char keyDown, char c) {
-//    Serial.print(keyDown, DEC);
-//    Serial.print(" ");
-//    Serial.println(c, DEC);
-//    Serial.write(keyDown);
-//    Serial.write(c);
-//    return;
     char x = c / 8;
     char y = c % 8;
     char bit0 = x & 0b00000001;
@@ -43,7 +47,6 @@ void sendKeyEvent(char keyDown, char c) {
 void setup() {
     Serial.begin(115200);
     Serial.setTimeout(100);
-//    while (Serial.read() >= 0);
     ps2Keyboard.begin();
     ps2Keyboard.setScanCodeSet(ps2::ScanCodeSet::pcat);
     keyMapping.setNumLock(true);
@@ -71,6 +74,8 @@ void setup() {
     digitalWrite(LOW, 11);
 }
 
+// Read data from serial port or ps2 keyboard
+// If there is data available on the serail port read the serial
 ps2::KeyboardOutput smartRead() {
   if (Serial.available()) {
     char incomingByte = Serial.read();
@@ -82,17 +87,21 @@ ps2::KeyboardOutput smartRead() {
 }
 
 void codesSwitch(ps2::KeyboardOutput scannedCode) {
+  // Check if scanned code is extended code
   if (((byte) scannedCode) == 0xe0) {
     isExtended = true;
     scannedCode = smartRead();
+    // Check if scanned code is 0
     if (scannedCode == ps2::KeyboardOutput::none) {
       return;
     }
   }
 
+  // Check if scanned code is keyup code
   if (((byte) scannedCode) == 0xf0) {
     data = false;
     scannedCode = smartRead();
+    // Check if scanned code is 0
     if (scannedCode == ps2::KeyboardOutput::none) {
       return;
     }
@@ -283,6 +292,7 @@ void codesSwitch(ps2::KeyboardOutput scannedCode) {
     }
   }
 
+  // Reset all flags is scanned code is not 0
   if (scannedCode != ps2::KeyboardOutput::none) {
     data = true;
     isExtended = false;
