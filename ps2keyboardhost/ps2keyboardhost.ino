@@ -22,6 +22,7 @@ bool data = true;
 bool isExtended = false;
 bool wasAKey = false;
 char dataBuf[1];
+bool readFromSerial = true;
 
 void sendKeyEvent(char keyDown, char c) {
     char x = c / 8;
@@ -72,14 +73,31 @@ void setup() {
   
     digitalWrite(HIGH, 11); // reset
     digitalWrite(LOW, 11);
+
+    int setupEndTime = millis();
+    // Wait 5 second for the serial
+    while (!Serial && millis() - setupEndTime < 5000);
+
+    // If there is serial connection, read from serial
+    // If not, don't
+    readFromSerial = !!Serial;
 }
 
 // Read data from serial port or ps2 keyboard
-// If there is data available on the serail port read the serial
+// If there is data available on the serial port read the serial
 ps2::KeyboardOutput smartRead() {
-  if (Serial.available()) {
-    char incomingByte = Serial.read();
-    return (ps2::KeyboardOutput) incomingByte;
+  if (readFromSerial) {
+    // Run a for loop in case there are no bytes in buffer
+    for (int i = 0; i < 5; i++) {
+      if (Serial.available()) {
+        char incomingByte = Serial.read();
+        return (ps2::KeyboardOutput) incomingByte;
+      }
+      // Wait one second (in total 5 seconds with for loop)
+      delay(1000);
+    }
+    // If there are no bytes in buffer, stop reading from serial
+    readFromSerial = false;
   } else {
     ps2::KeyboardOutput scanCode = ps2Keyboard.readScanCode();
     return scanCode;
